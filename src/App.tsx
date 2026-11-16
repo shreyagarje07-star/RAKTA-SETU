@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DonorRegistration } from './components/DonorRegistration';
 import { HospitalDashboard } from './components/HospitalDashboard';
+import { DonorNotifications } from './components/DonorNotifications';
+import { EditProfile } from './components/EditProfile';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -46,7 +48,16 @@ export default function App() {
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto py-10 px-4">
         {activeTab === 'donor' ? (
-          <DonorRegistration />
+          <div className="space-y-10 pb-20">
+            {/* 1. Registration Form */}
+            <DonorRegistration />
+            
+            {/* 2. Live Alerts */}
+            <DonorNotifications />
+            
+            {/* 3. Edit Profile */}
+            <EditProfile />
+          </div>
         ) : (
           <HospitalDashboard />
         )}
