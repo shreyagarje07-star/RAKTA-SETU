@@ -1,61 +1,82 @@
 import type { Donor, ScoredDonor, BloodGroup } from './types';
 
-export function calculatePriorityScore(donor: Donor, hospitalCity: string): number {
-  const donorCity = donor.city ? donor.city.trim().toLowerCase() : '';
-  const hospCity = hospitalCity ? hospitalCity.trim().toLowerCase() : '';
-  const proximity = donorCity === hospCity ? 40 : 0;
+// Haversine formula to calculate distance in km between two coordinates
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
 
-  let recency = 30; // Default for new donors
-  if (donor.last_donation_date) {
+export function calculatePriorityScore(
+  donor: Donor,
+  hospitalCity: string,
+  hospitalLat?: number | null,
+  hospitalLon?: number | null
+): number {
+  // 1. Proximity (40 pts)
+  let proximity = 0;
+  
+  if (hospitalLat && hospitalLon && donor.latitude && donor.longitude) {
+    const distance = getDistanceFromLatLonInKm(hospitalLat, hospitalLon, donor.latitude, donor.longitude);
+    if (distance <= 10) proximity = 40;      // Within 10km
+    else if (distance <= 25) proximity = 30; // Within 25km
+    else if (distance <= 50) proximity = 15; // Within 50km
+    else proximity = 0;                      // Too far
+  } else {
+    // Fallback to City match if coordinates are missing
+    const donorCity = donor.city ? donor.city.trim().toLowerCase() : '';
+    const hospCity = hospitalCity ? hospitalCity.trim().toLowerCase() : '';
+    proximity = donorCity === hospCity ? 40 : 0;
+  }
+
+  // 2. Recency (30 pts)
+  let recency = 0;
+  if (!donor.last_donation_date) {
+    recency = 30;
+  } else {
     const daysSince = Math.floor((Date.now() - new Date(donor.last_donation_date).getTime()) / (1000 * 60 * 60 * 24));
     if (daysSince >= 90) {
-      recency = Math.min((daysSince / 365) * 30, 30);
-    } else {
-      recency = 0;
+      const effective = Math.min(daysSince, 365);
+      recency = ((effective - 90) / (365 - 90)) * 30;
     }
   }
 
+  // 3. Reliability (30 pts)
   const reliability = Math.min(30, (donor.total_donations || 0) * 5);
-  return Math.round(Math.min(100, Math.max(0, proximity + recency + reliability)));
+
+  const total = proximity + recency + reliability;
+  return Math.round(Math.min(100, Math.max(0, total)));
 }
 
 export function matchAndScoreDonors(
   allDonors: Donor[],
   bloodGroup: BloodGroup,
-  hospitalCity: string
+  hospitalCity: string,
+  hospitalLat?: number | null,
+  hospitalLon?: number | null
 ): ScoredDonor[] {
   
   const eligible = allDonors.filter((donor) => {
-    // 1. Check Blood Group
     if (donor.blood_group !== bloodGroup) return false;
-    
-    // 2. Check Consent & Availability
-    if (!donor.consent_sms) {
-      console.log(`Skipping ${donor.name}: No consent`);
-      return false;
-    }
-    if (!donor.is_available) {
-      console.log(`Skipping ${donor.name}: Not available`);
-      return false;
-    }
+    if (!donor.consent_sms) return false;
+    if (!donor.is_available) return false;
 
-    // Temporarily disabled the 90-day check to debug
-    /* 
     if (donor.last_donation_date) {
       const daysSince = Math.floor((Date.now() - new Date(donor.last_donation_date).getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSince < 90) {
-        console.log(`Skipping ${donor.name}: Donated less than 90 days ago`);
-        return false;
-      }
+      if (daysSince < 90) return false;
     }
-    */
-
     return true;
   });
 
   const scored: ScoredDonor[] = eligible.map((donor) => ({
     ...donor,
-    priority_score: calculatePriorityScore(donor, hospitalCity),
+    priority_score: calculatePriorityScore(donor, hospitalCity, hospitalLat, hospitalLon),
   }));
 
   scored.sort((a, b) => b.priority_score - a.priority_score);
