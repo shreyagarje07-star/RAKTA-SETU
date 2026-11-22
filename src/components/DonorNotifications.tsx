@@ -2,30 +2,34 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-export function DonorNotifications() {
+interface Props {
+  onAlertCountChange: (count: number) => void;
+}
+
+export function DonorNotifications({ onAlertCountChange }: Props) {
   const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
-    // 1. Fetch initial alerts (only 'open' ones)
     const fetchAlerts = async () => {
       const { data } = await supabase
         .from('blood_requests')
         .select('*')
         .eq('status', 'open')
         .order('created_at', { ascending: false });
-      if (data) setAlerts(data);
+      if (data) {
+        setAlerts(data);
+        onAlertCountChange(data.length); // Update parent badge
+      }
     };
     fetchAlerts();
 
-    // 2. Listen for changes in real-time
     const channel = supabase
       .channel('blood-alerts-channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'blood_requests' }, // Listen to INSERT, UPDATE, and DELETE
+        { event: '*', schema: 'public', table: 'blood_requests' },
         () => {
-          // If anything changes, just re-fetch the open alerts
-          fetchAlerts();
+          fetchAlerts(); // Re-fetch on any change to update counts
         }
       )
       .subscribe();
@@ -33,14 +37,14 @@ export function DonorNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [onAlertCountChange]);
 
-  // 3. Wipe the database
   const clearAlerts = async () => {
-    // Clear UI immediately so it feels instant
+    if (!window.confirm("Are you sure you want to clear all alerts? This will delete them permanently.")) return;
+    
     setAlerts([]); 
+    onAlertCountChange(0);
 
-    // Delete all requests from the database
     const { error } = await supabase
       .from('blood_requests')
       .delete()
@@ -48,46 +52,45 @@ export function DonorNotifications() {
 
     if (error) {
       toast.error('Database error: Could not clear alerts.');
-      console.error(error);
     } else {
       toast.success('All alerts permanently cleared!');
     }
   };
 
   return (
-    <div className="max-w-lg mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🔔</span>
-          <h2 className="text-xl font-bold text-slate-800">Live Emergency Alerts</h2>
+    <div className="max-w-3xl mx-auto mt-6">
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-800">Live Emergency Alerts</h2>
+          <p className="text-slate-500">You receive these alerts because hospitals urgently need your blood type.</p>
         </div>
         {alerts.length > 0 && (
           <button 
             onClick={clearAlerts}
-            className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
+            className="text-sm font-semibold text-red-600 bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition"
           >
-            Clear All
+            Clear All Alerts
           </button>
         )}
       </div>
-      
-      <p className="text-sm text-slate-500 mb-4">
-        You will receive instant alerts here when a hospital needs your blood group.
-      </p>
 
       {alerts.length === 0 ? (
-        <p className="text-center text-slate-400 py-8">No active alerts right now.</p>
+        <div className="bg-white p-12 text-center rounded-2xl shadow-sm border border-slate-200">
+          <p className="text-slate-400 text-lg">No active alerts right now. You are safe!</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {alerts.map((alert) => (
-            <div key={alert.id} className="p-4 bg-red-50 border border-red-100 rounded-xl">
+            <div key={alert.id} className="p-6 bg-white shadow-sm border border-red-200 border-l-4 border-l-red-600 rounded-xl">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-bold text-red-700">🚨 URGENT: {alert.blood_group} Needed</p>
-                  <p className="text-sm text-red-600">{alert.hospital_name || 'Local Hospital'}</p>
-                  <p className="text-xs text-slate-500 mt-1">📍 {alert.hospital_city || 'City Center'}</p>
+                  <p className="font-bold text-lg text-slate-800">URGENT: {alert.blood_group} Needed</p>
+                  <p className="text-slate-600 font-medium mt-1">{alert.hospital_name || 'Local Hospital'}</p>
+                  <p className="text-sm text-slate-500 mt-2">Location: {alert.hospital_city || 'City Center'}</p>
                 </div>
-                <span className="text-xs font-bold text-red-500 uppercase">{alert.urgency}</span>
+                <span className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full uppercase tracking-wide">
+                  {alert.urgency}
+                </span>
               </div>
             </div>
           ))}

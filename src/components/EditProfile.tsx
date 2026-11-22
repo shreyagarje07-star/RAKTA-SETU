@@ -33,12 +33,21 @@ export function EditProfile() {
     e.preventDefault();
     setLoading(true);
     
-    const coords = getMockCoordinates(donor.city); // <--- GET NEW COORDINATES
+    const coords = getMockCoordinates(donor.city);
+
+    // Validate Age if they entered one
+    const ageNum = donor.age ? parseInt(donor.age) : null;
+    if (ageNum && (ageNum < 18 || ageNum > 65)) {
+      toast.error('Age must be between 18 and 65.');
+      setLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from('donors')
       .update({
         name: donor.name,
+        age: ageNum,
         city: donor.city,
         state: donor.state,
         blood_group: donor.blood_group,
@@ -69,9 +78,15 @@ export function EditProfile() {
         </form>
       ) : (
         <form onSubmit={handleUpdate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-            <input value={donor.name} onChange={(e) => setDonor({ ...donor, name: e.target.value })} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-500" />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
+              <input value={donor.name} onChange={(e) => setDonor({ ...donor, name: e.target.value })} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Age (18-65)</label>
+              <input type="number" min="18" max="65" value={donor.age || ''} onChange={(e) => setDonor({ ...donor, age: e.target.value })} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-500" placeholder="Optional" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

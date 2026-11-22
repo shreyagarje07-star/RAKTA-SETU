@@ -29,14 +29,14 @@ export function DonorDirectory() {
     fetchDonors();
   }, []);
 
-  // Filter logic with safety checks
+  // Filter logic
   const filteredDonors = donors.filter((donor) => {
-    // 1. Safety check in case a field is null
     const nameMatch = (donor.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const phoneMatch = (donor.phone || '').includes(searchTerm);
     const cityMatch = (donor.city || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const areaMatch = (donor.area || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesSearch = nameMatch || phoneMatch || cityMatch;
+    const matchesSearch = nameMatch || phoneMatch || cityMatch || areaMatch;
     const matchesGroup = filterGroup === 'All' || donor.blood_group === filterGroup;
     
     return matchesSearch && matchesGroup;
@@ -55,7 +55,7 @@ export function DonorDirectory() {
         <div className="flex gap-2 w-full md:w-auto">
           <input
             type="text"
-            placeholder="Search name, phone, or city..."
+            placeholder="Search name, phone, area, or city..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 rounded-lg border border-slate-300 px-4 py-2 outline-none focus:ring-2 focus:ring-red-500"
@@ -85,6 +85,7 @@ export function DonorDirectory() {
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 font-semibold">Donor Name</th>
+                  <th className="px-6 py-4 font-semibold">Age</th>
                   <th className="px-6 py-4 font-semibold">Blood Group</th>
                   <th className="px-6 py-4 font-semibold">Location</th>
                   <th className="px-6 py-4 font-semibold">Phone Number</th>
@@ -96,13 +97,18 @@ export function DonorDirectory() {
                 {filteredDonors.map((donor) => (
                   <tr key={donor.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-800">{donor.name}</td>
+                    <td className="px-6 py-4 text-slate-600">{donor.age || 'N/A'}</td>
                     <td className="px-6 py-4">
                       <span className="inline-block px-2.5 py-1 bg-red-100 text-red-700 font-bold rounded-md text-xs">
                         {donor.blood_group}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-600">
-                      {donor.city}, {donor.state}
+                      {/* Display Area, City, State */}
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-800">{donor.area || 'N/A'}</span>
+                        <span className="text-xs text-slate-500">{donor.city}, {donor.state}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       <a href={`tel:${donor.phone}`} className="hover:text-red-600 underline">

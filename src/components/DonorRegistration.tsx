@@ -19,7 +19,7 @@ interface Props { userId?: string; onSuccess?: () => void; }
 export function DonorRegistration({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    name: '', phone: '', age: '', blood_group: 'O+' as BloodGroup, city: '', state: '', consent_sms: false, last_donation_date: '',
+    name: '', phone: '', age: '', blood_group: 'O+' as BloodGroup, city: '', area: '', state: '', consent_sms: false, last_donation_date: '',
   });
   
   // Medical Screening States
@@ -63,6 +63,7 @@ export function DonorRegistration({ onSuccess }: Props) {
         age: ageNum,
         blood_group: parsed.blood_group,
         city: parsed.city,
+        area: form.area,
         state: parsed.state,
         consent_sms: parsed.consent_sms,
         is_available: true,
@@ -70,14 +71,19 @@ export function DonorRegistration({ onSuccess }: Props) {
         total_donations: 0,
         latitude: coords.lat,
         longitude: coords.lon,
-        has_disease: false, // Always false if they pass the check
+        has_disease: false,
         disease_details: null,
       });
 
       if (error) throw error;
 
       toast.success('Registration successful!');
-      setForm({ name: '', phone: '', age: '', blood_group: 'O+', city: '', state: '', consent_sms: false, last_donation_date: '' });
+      
+      // Reset form completely
+      setForm({ name: '', phone: '', age: '', blood_group: 'O+', city: '', area: '', state: '', consent_sms: false, last_donation_date: '' });
+      setHasDisease(false);
+      setDiseaseDetails('');
+      
       if (onSuccess) onSuccess();
     } catch (err: any) {
       toast.error(err.message || 'Registration failed.');
@@ -96,6 +102,7 @@ export function DonorRegistration({ onSuccess }: Props) {
           <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
           <input name="name" value={form.name} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Priya Sharma" />
         </div>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
@@ -106,12 +113,14 @@ export function DonorRegistration({ onSuccess }: Props) {
             <input name="age" type="number" min="18" max="65" value={form.age} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="25" />
           </div>
         </div>
+        
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Blood Group</label>
           <select name="blood_group" value={form.blood_group} onChange={handleChange} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none">
             {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
           </select>
         </div>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
@@ -122,6 +131,13 @@ export function DonorRegistration({ onSuccess }: Props) {
             <input name="state" value={form.state} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Maharashtra" />
           </div>
         </div>
+
+        {/* --- NEW AREA FIELD --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Area / Locality</label>
+          <input name="area" value={form.area} onChange={handleChange} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Andheri West" />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Last Donation Date <span className="text-slate-400">(optional)</span></label>
           <input name="last_donation_date" type="date" value={form.last_donation_date} onChange={handleChange} className="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-red-500 outline-none" />

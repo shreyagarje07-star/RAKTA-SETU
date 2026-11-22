@@ -19,21 +19,34 @@ export function calculatePriorityScore(
   hospitalLat?: number | null,
   hospitalLon?: number | null
 ): number {
-  // 1. Proximity (40 pts)
   let proximity = 0;
   
   if (hospitalLat && hospitalLon && donor.latitude && donor.longitude) {
-    const distance = getDistanceFromLatLonInKm(hospitalLat, hospitalLon, donor.latitude, donor.longitude);
-    if (distance <= 10) proximity = 40;      // Within 10km
-    else if (distance <= 25) proximity = 30; // Within 25km
-    else if (distance <= 50) proximity = 15; // Within 50km
-    else proximity = 0;                      // Too far
+    // If the donor has an area, we add a small random offset so they don't stack perfectly
+    // This simulates different neighborhoods
+    let adjustedLat = donor.latitude;
+    let adjustedLon = donor.longitude;
+    
+    if (donor.area) {
+      // Create a pseudo-random offset based on the string length of the area name
+      const seed = donor.area.length * 0.001;
+      adjustedLat += seed;
+      adjustedLon -= seed;
+    }
+
+    const distance = getDistanceFromLatLonInKm(hospitalLat, hospitalLon, adjustedLat, adjustedLon);
+    
+    if (distance <= 10) proximity = 40;
+    else if (distance <= 25) proximity = 30;
+    else if (distance <= 50) proximity = 15;
+    else proximity = 0;
   } else {
-    // Fallback to City match if coordinates are missing
     const donorCity = donor.city ? donor.city.trim().toLowerCase() : '';
     const hospCity = hospitalCity ? hospitalCity.trim().toLowerCase() : '';
     proximity = donorCity === hospCity ? 40 : 0;
   }
+
+  // ... rest of the function
 
   // 2. Recency (30 pts)
   let recency = 0;
