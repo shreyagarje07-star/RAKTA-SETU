@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 import { DonorRegistration } from './components/DonorRegistration';
 import { HospitalDashboard } from './components/HospitalDashboard';
 import { DonorNotifications } from './components/DonorNotifications';
@@ -13,11 +14,40 @@ import { About } from './components/About';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
-  // Added 'profile' to the active tab options
   const [activeTab, setActiveTab] = useState<'home' | 'donor' | 'profile' | 'hospital' | 'directory' | 'about' | 'notifications'>('home');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+
+  // --- GLOBAL NOTIFICATION LISTENER ---
+  useEffect(() => {
+    const updateCount = async () => {
+      const { count } = await supabase
+        .from('blood_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'open');
+      
+      console.log("Checking count...", count);
+      setAlertCount(count || 0);
+    };
+
+    updateCount();
+
+    const channel = supabase
+      .channel('global-notification-tracker')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'blood_requests' },
+        () => {
+          updateCount(); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleTabChange = (tab: 'home' | 'donor' | 'profile' | 'hospital' | 'directory' | 'about' | 'notifications') => {
     setActiveTab(tab);
@@ -52,6 +82,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Right Side: Bell Icon with Live Badge */}
           <div className="flex items-center">
             <button 
               onClick={() => handleTabChange('notifications')}
@@ -60,8 +91,9 @@ export default function App() {
               <svg className="w-7 h-7 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
+              
               {alertCount > 0 && (
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full animate-pulse shadow-md">
                   {alertCount}
                 </span>
               )}
@@ -92,10 +124,7 @@ export default function App() {
           <div className="space-y-2 flex-1">
             <button onClick={() => handleTabChange('home')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'home' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>Home</button>
             <button onClick={() => handleTabChange('donor')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'donor' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>Donor Registration</button>
-            
-            {/* NEW PROFILE TAB */}
             <button onClick={() => handleTabChange('profile')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'profile' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>My Profile & Documents</button>
-            
             <button onClick={() => handleTabChange('hospital')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'hospital' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>Hospital Portal</button>
             <button onClick={() => handleTabChange('directory')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'directory' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>Donor Directory</button>
             <button onClick={() => handleTabChange('about')} className={`w-full text-left px-4 py-3 rounded-xl font-semibold transition-colors ${activeTab === 'about' ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50'}`}>About & Manual</button>
@@ -124,7 +153,6 @@ export default function App() {
           </div>
         )}
 
-        {/* DONOR REGISTRATION TAB (Cleaned up) */}
         {activeTab === 'donor' && (
           <div className="space-y-12 pb-20">
             <DonorRegistration />
@@ -133,7 +161,6 @@ export default function App() {
           </div>
         )}
 
-        {/* NEW PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-12 pb-20">
             <div className="text-center mb-8">
@@ -146,9 +173,10 @@ export default function App() {
           </div>
         )}
 
+        {/* NOTIFICATIONS TAB - Removed the callback so it can't interfere with the bell */}
         {activeTab === 'notifications' && (
           <div className="space-y-12 pb-20">
-            <DonorNotifications onAlertCountChange={setAlertCount} />
+            <DonorNotifications />
           </div>
         )}
 

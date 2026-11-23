@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-interface Props {
-  onAlertCountChange: (count: number) => void;
-}
+// Removed the Props interface entirely
 
-export function DonorNotifications({ onAlertCountChange }: Props) {
+export function DonorNotifications() {
   const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
@@ -18,18 +16,17 @@ export function DonorNotifications({ onAlertCountChange }: Props) {
         .order('created_at', { ascending: false });
       if (data) {
         setAlerts(data);
-        onAlertCountChange(data.length); // Update parent badge
       }
     };
     fetchAlerts();
 
     const channel = supabase
-      .channel('blood-alerts-channel')
+      .channel('blood-alerts-channel-component')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'blood_requests' },
         () => {
-          fetchAlerts(); // Re-fetch on any change to update counts
+          fetchAlerts(); 
         }
       )
       .subscribe();
@@ -37,14 +34,13 @@ export function DonorNotifications({ onAlertCountChange }: Props) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [onAlertCountChange]);
+  }, []);
 
   const clearAlerts = async () => {
     if (!window.confirm("Are you sure you want to clear all alerts? This will delete them permanently.")) return;
     
     setAlerts([]); 
-    onAlertCountChange(0);
-
+    
     const { error } = await supabase
       .from('blood_requests')
       .delete()

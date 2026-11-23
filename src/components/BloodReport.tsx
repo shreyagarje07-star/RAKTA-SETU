@@ -35,12 +35,11 @@ export function BloodReport() {
   const generateReport = () => {
     if (!donor) return;
     
-    // Simulate clinical readings for the report
+    // Simulate clinical readings for the report (Weight removed)
     const simulatedReadings = {
       hemoglobin: (13.5 + Math.random() * 2).toFixed(1), // 13.5 - 15.5 g/dL
       bloodPressure: `${110 + Math.floor(Math.random() * 15)}/${70 + Math.floor(Math.random() * 10)}`, // e.g., 120/80
       pulse: 70 + Math.floor(Math.random() * 15), // 70 - 85 bpm
-      weight: 55 + Math.floor(Math.random() * 25), // 55 - 80 kg
       units: 1, // 1 unit (approx 450ml)
       date: new Date().toLocaleDateString(),
       hospital: 'City General Hospital (RaktaSetu Network)',
@@ -138,7 +137,6 @@ export function BloodReport() {
                     <p>Hemoglobin: <strong>{reportData.hemoglobin} g/dL</strong></p>
                     <p>Blood Pressure: <strong>{reportData.bloodPressure} mmHg</strong></p>
                     <p>Pulse Rate: <strong>{reportData.pulse} bpm</strong></p>
-                    <p>Weight: <strong>{reportData.weight} kg</strong></p>
                   </div>
                 </div>
 
@@ -161,7 +159,7 @@ export function BloodReport() {
                 onClick={downloadPDF}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex justify-center items-center gap-2"
               >
-                📥 Download Blood Report PDF
+                Download Blood Report PDF
               </button>
             </div>
           )}

@@ -18,14 +18,17 @@ const getMockCoordinates = (city: string) => {
   return { lat: null, lon: null };
 };
 
-interface Props { userId?: string; }
-
-export function HospitalDashboard({ userId }: Props) {
+export function HospitalDashboard({ userId }: { userId?: string }) {
   const [form, setForm] = useState({
     hospital_name: '', blood_group: 'O+' as BloodGroup, urgency: 'urgent' as 'critical' | 'urgent' | 'normal', hospital_city: '', notes: '',
   });
   const [loading, setLoading] = useState(false);
-  const [matchedDonors, setMatchedDonors] = useState<ScoredDonor[]>([]);
+  
+  // Separate states for exact and compatible matches
+  const [exactDonors, setExactDonors] = useState<ScoredDonor[]>([]);
+  const [compatibleDonors, setCompatibleDonors] = useState<ScoredDonor[]>([]);
+  
+  const [allMatchedDonors, setAllMatchedDonors] = useState<ScoredDonor[]>([]); // For the map
   const [activeRequest, setActiveRequest] = useState<BloodRequest | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
   const [hospitalCoords, setHospitalCoords] = useState<{ lat: number, lon: number } | null>(null);
@@ -48,7 +51,8 @@ export function HospitalDashboard({ userId }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMatchedDonors([]);
+    setExactDonors([]);
+    setCompatibleDonors([]);
     setResponses([]);
     setHospitalCoords(null);
 
@@ -56,9 +60,7 @@ export function HospitalDashboard({ userId }: Props) {
       const parsed = CreateBloodRequestSchema.parse(form);
       const coords = getMockCoordinates(parsed.hospital_city);
 
-      if (coords.lat && coords.lon) {
-        setHospitalCoords({ lat: coords.lat, lon: coords.lon });
-      }
+      if (coords.lat && coords.lon) setHospitalCoords({ lat: coords.lat, lon: coords.lon });
 
       const { data: request, error } = await supabase.from('blood_requests').insert({
         hospital_name: parsed.hospital_name,
@@ -77,7 +79,7 @@ export function HospitalDashboard({ userId }: Props) {
       const { data: donors, error: donorError } = await supabase.from('donors').select('*');
       if (donorError) throw donorError;
 
-      const scored = matchAndScoreDonors(
+      const result = matchAndScoreDonors(
         (donors || []) as Donor[], 
         parsed.blood_group, 
         parsed.hospital_city,
@@ -85,8 +87,13 @@ export function HospitalDashboard({ userId }: Props) {
         coords.lon
       );
       
-      setMatchedDonors(scored);
-      toast.success(`Found ${scored.length} eligible donor(s).`);
+      setExactDonors(result.exactMatches);
+      setCompatibleDonors(result.compatibleMatches);
+      
+      // Combine them for the map
+      setAllMatchedDonors([...result.exactMatches, ...result.compatibleMatches]);
+      
+      toast.success(`Found ${result.exactMatches.length} exact and ${result.compatibleMatches.length} compatible donors.`);
 
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit request');
@@ -95,29 +102,21 @@ export function HospitalDashboard({ userId }: Props) {
     }
   };
 
-  // Function to close the request
   const handleResolveRequest = async () => {
     if (!activeRequest) return;
-    
-    const { error } = await supabase
-      .from('blood_requests')
-      .update({ status: 'closed' })
-      .eq('id', activeRequest.id);
-      
-    if (error) {
-      toast.error('Failed to close request');
-    } else {
-      toast.success('Request fulfilled! Alerts have been removed from donors.');
+    const { error } = await supabase.from('blood_requests').update({ status: 'closed' }).eq('id', activeRequest.id);
+    if (error) toast.error('Failed to close request');
+    else {
+      toast.success('Request fulfilled! Alerts removed.');
       setActiveRequest(null);
-      setMatchedDonors([]);
+      setExactDonors([]);
+      setCompatibleDonors([]);
     }
   };
 
-  const localDonors = matchedDonors.filter(d => d.city.toLowerCase().trim() === form.hospital_city.toLowerCase().trim() || d.priority_score >= 70);
-  const otherDonors = matchedDonors.filter(d => d.city.toLowerCase().trim() !== form.hospital_city.toLowerCase().trim() && d.priority_score < 70);
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Request Form */}
       <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100">
         <h2 className="text-2xl font-bold text-slate-800 mb-1">Submit Emergency Blood Request</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
@@ -145,92 +144,84 @@ export function HospitalDashboard({ userId }: Props) {
           </div>
           <div className="md:col-span-2">
             <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3.5 rounded-xl text-lg">
-              {loading ? 'Submitting & Matching...' : '🚨 Submit Emergency Request'}
+              {loading ? 'Submitting & Matching...' : 'Submit Emergency Request'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* --- ACTION BUTTON: CLOSE REQUEST --- */}
       {activeRequest && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between shadow-sm">
           <div>
             <h3 className="font-bold text-emerald-800">Active Emergency Request</h3>
             <p className="text-sm text-emerald-600">Found a donor? Mark this request as fulfilled to clear the alerts.</p>
           </div>
-          <button
-            onClick={handleResolveRequest}
-            className="mt-4 md:mt-0 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition shadow-md"
-          >
-            ✅ Mark as Fulfilled & Close Alerts
+          <button onClick={handleResolveRequest} className="mt-4 md:mt-0 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition shadow-md">
+            Mark as Fulfilled & Close Alerts
           </button>
         </div>
       )}
 
-      {hospitalCoords && matchedDonors.length > 0 && (
+      {hospitalCoords && allMatchedDonors.length > 0 && (
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-100">
-          <h3 className="text-xl font-bold text-slate-800 mb-2">🗺️ Donor Proximity Map</h3>
-          <DonorMap donors={matchedDonors} hospitalLat={hospitalCoords.lat} hospitalLon={hospitalCoords.lon} hospitalName={form.hospital_name} />
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Donor Proximity Map</h3>
+          <DonorMap donors={allMatchedDonors} hospitalLat={hospitalCoords.lat} hospitalLon={hospitalCoords.lon} hospitalName={form.hospital_name} />
         </div>
       )}
 
-      {localDonors.length > 0 && (
+      {/* EXACT MATCHES SECTION */}
+      {exactDonors.length > 0 && (
         <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-emerald-100">
           <h3 className="text-xl font-bold text-emerald-800 mb-4 flex items-center gap-2">
-            📍 Nearby Donors in {form.hospital_city} ({localDonors.length})
+            Exact Match Donors ({form.blood_group}) - {exactDonors.length} found
           </h3>
           <div className="space-y-4">
-            {localDonors.map((donor, index) => (
-              <div key={donor.id} className="border border-slate-200 rounded-xl p-4 hover:border-emerald-200 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm">{index + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-slate-800">{donor.name}</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-medium">{donor.blood_group}</span>
-                      <span className="text-xs text-slate-500">📍 {donor.city}, {donor.state}</span>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span>Phone: {donor.phone}</span>
-                      <span>Past donations: {donor.total_donations}</span>
-                    </div>
-                    <div className="mt-3"><PriorityScoreBar score={donor.priority_score} /></div>
-                  </div>
-                </div>
-              </div>
+            {exactDonors.map((donor, index) => (
+               <DonorCard key={donor.id} donor={donor} index={index} />
             ))}
           </div>
         </div>
       )}
 
-      {otherDonors.length > 0 && (
+      {/* COMPATIBLE MATCHES SECTION */}
+      {compatibleDonors.length > 0 && (
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h3 className="text-lg font-bold text-slate-600 mb-4 flex items-center gap-2">
-            🚗 Donors from Other Cities ({otherDonors.length})
+          <h3 className="text-lg font-bold text-slate-700 mb-1 flex items-center gap-2">
+            Also Compatible With ({compatibleDonors.length} found)
           </h3>
+          <p className="text-sm text-slate-500 mb-4">These donors have compatible blood types that can be safely used for a {form.blood_group} patient.</p>
           <div className="space-y-4">
-            {otherDonors.map((donor, index) => (
-              <div key={donor.id} className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-sm">{index + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-slate-800">{donor.name}</span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-medium">{donor.blood_group}</span>
-                      <span className="text-xs text-slate-500">📍 {donor.city}, {donor.state}</span>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span>Phone: {donor.phone}</span>
-                      <span>Past donations: {donor.total_donations}</span>
-                    </div>
-                    <div className="mt-3"><PriorityScoreBar score={donor.priority_score} /></div>
-                  </div>
-                </div>
-              </div>
+            {compatibleDonors.map((donor, index) => (
+               <DonorCard key={donor.id} donor={donor} index={index} />
             ))}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Helper Component for the Donor Card
+function DonorCard({ donor, index }: { donor: ScoredDonor, index: number }) {
+  return (
+    <div className="border border-slate-200 rounded-xl p-4 hover:border-emerald-200 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-sm">
+          {index + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-slate-800">{donor.name}</span>
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold">{donor.blood_group}</span>
+            <span className="text-xs text-slate-500">{donor.city}, {donor.state}</span>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span>Phone: {donor.phone}</span>
+            <span>Past donations: {donor.total_donations}</span>
+          </div>
+          <div className="mt-3"><PriorityScoreBar score={donor.priority_score} /></div>
+        </div>
+      </div>
     </div>
   );
 }
