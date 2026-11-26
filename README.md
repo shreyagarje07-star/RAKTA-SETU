@@ -1,70 +1,70 @@
-🩸 RaktaSetu: Intelligent Blood Donor Registry & Emergency Notifier
-RaktaSetu (meaning "Blood Bridge") is a modern, serverless web application designed to bridge the critical gap between hospitals in urgent need of blood and eligible, nearby donors. It replaces outdated manual calling systems with a real-time, geographically aware matching engine.
+<div align="center">
 
-🚀 Key Features
-Real-Time WebSocket Alerts: Donors receive instant in-app notifications (via a live Bell icon) the second a hospital submits an emergency request. No page refresh required.
+# 🩸 RAKTASETU
 
-Triage Priority Algorithm: A custom algorithm that ranks donors out of 100 based on:
+### *The Intelligent Blood Donor Registry & Emergency Notifier*
 
-Proximity (40%): Calculated exactly using the Haversine distance formula.
+**Bridging the gap between hospitals and life-savers in real-time.**
 
-Recency (30%): Time elapsed since the last donation.
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 
-Reliability (30%): Total lifetime donations.
+</div>
 
-Medical Safety & Compliance:
+---
 
-90-Day Lockout: Automatically blocks donors from matching if they have donated within the last 90 days.
+## 📖 ABOUT THE PROJECT
 
-Medical Screening: Blocks registration for users with infectious diseases (HIV, Hepatitis, etc.).
+During critical medical emergencies, hospitals waste precious "golden hour" time manually calling blood banks and donors. Existing solutions are fragmented, expensive, and lack geographic awareness. 
 
-Compatibility Matrix: Matches exact blood groups as well as medically compatible blood types.
+**RaktaSetu** is a fully serverless, real-time web platform that instantly matches hospitals with the most eligible, nearby donors. It replaces manual outreach with WebSocket-driven live alerts, completely eliminating the cost of third-party SMS gateways.
 
-Interactive Geospatial Map: Uses Leaflet.js to plot the hospital (Red pin) and donors (Green A, B, C pins) based on their exact Area/City coordinates.
+---
 
-Document Generation: Automatically generates downloadable PDF Donation Certificates and Medical Blood Reports using jsPDF.
+## ✨ KEY FEATURES
 
-Blood Inventory Tracking: Tracks the 42-day shelf life of blood bags and alerts hospitals before they expire.
+### ⚡ Real-Time Alerts
+Donors receive instant in-app notifications via a live Bell icon the second a hospital submits a request. No page refresh required, powered by Supabase WebSockets.
 
-Admin Directory: A complete searchable database of all registered donors.
+### 🧠 Triage Priority Algorithm
+We don't just list donors; we rank them out of 100 based on **Proximity (Haversine Formula)**, **Recency**, and **Reliability**.
 
-🛠️ Tech Stack
-Frontend: React (Vite), TypeScript, Tailwind CSS, React-Leaflet.
+### 🗺️ Interactive Geolocation
+An integrated Leaflet.js map plots the hospital (Red pin) and donors (Green A, B, C pins) based on exact coordinates and sub-city areas.
 
-Backend & Database: Supabase (PostgreSQL).
+### 🛡️ Medical Safety Lockout
+Strict enforcement of the 90-day recovery rule. Donors with infectious diseases are automatically barred from the registry. 
 
-Real-Time Engine: Supabase Realtime (WebSockets).
+### 📄 Automated PDF Generation
+Generates beautiful, A4-landscape Donation Certificates and clinical Medical Reports using jsPDF.
 
-Document Generation: jsPDF, html2canvas.
+### 📦 Blood Inventory Tracking
+Hospitals can log blood bags, auto-calculate the 42-day shelf life, and receive red alerts for expiring units.
 
-Deployment: Vercel (Frontend), Supabase (Database).
+---
 
-⚙️ How to Run Locally
-Clone the repository:
+## 🛠️ TECH STACK
 
-bash
-git clone https://github.com/shreyagarje07-star/Blood-IQ.git
-cd Blood-IQ
-Install dependencies:
+- **Frontend:** React (Vite), TypeScript, Tailwind CSS, React-Leaflet
+- **Backend / Database:** Supabase (PostgreSQL)
+- **Real-Time Engine:** Supabase Realtime (WebSockets)
+- **Document Generation:** jsPDF, html2canvas
+- **Deployment:** Vercel
 
-bash
+---
+
+## 🚀 QUICK START (RUN LOCALLY)
+
+**1. Clone the repository:**
 npm install
-Set up Environment Variables:
-Create a .env file in the root directory and add your Supabase credentials:
-
-env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-Run the development server:
-
-bash
 npm run dev
+
 Open http://localhost:5173 in your browser.
 
-🗄️ Database Setup (Supabase)
-To run this project, you need to create the following tables in your Supabase PostgreSQL database. Run this SQL in the Supabase SQL Editor:
-
-sql
 -- Create Donors Table
 CREATE TABLE public.donors (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,7 +102,6 @@ CREATE TABLE public.certificates (
   hospital_name text,
   issued_at timestamptz DEFAULT now()
 );
-
-
-📄 License
-This project is open-source and available under the MIT License.
+```bash
+git clone https://github.com/shreyagarje07-star/Blood-IQ.git
+cd Blood-IQ
