@@ -1,117 +1,108 @@
-# Community Blood Donor Registry & Emergency Notifier
+🩸 RaktaSetu: Intelligent Blood Donor Registry & Emergency Notifier
+RaktaSetu (meaning "Blood Bridge") is a modern, serverless web application designed to bridge the critical gap between hospitals in urgent need of blood and eligible, nearby donors. It replaces outdated manual calling systems with a real-time, geographically aware matching engine.
 
-Real-time blood donor matching system with **Triage Priority Score** and live emergency alerts.
+🚀 Key Features
+Real-Time WebSocket Alerts: Donors receive instant in-app notifications (via a live Bell icon) the second a hospital submits an emergency request. No page refresh required.
 
-## Features
+Triage Priority Algorithm: A custom algorithm that ranks donors out of 100 based on:
 
-- **Donor Registration** – Name, Phone, Blood Group, City, State, Consent, Last Donation Date
-- **Hospital Dashboard** – Submit emergency requests
-- **Matching Engine** – Filters by blood group + consent + availability + 90-day rule
-- **Triage Priority Score (0-100)**  
-  - Proximity 40% (same city)  
-  - Recency 30% (longer since last donation = higher)  
-  - Reliability 30% (more past donations = higher)
-- **Real-time Alerts** – Donors logged into their dashboard instantly get a toast + modal with Accept / Decline
-- **RLS + Indexes** – Secure and fast
+Proximity (40%): Calculated exactly using the Haversine distance formula.
 
-## Tech Stack
+Recency (30%): Time elapsed since the last donation.
 
-- React 18 + Vite + TypeScript
-- Tailwind CSS
-- Supabase (Auth + PostgreSQL + Realtime)
-- Zod validation
-- react-hot-toast
+Reliability (30%): Total lifetime donations.
 
-## Setup (Beginner-friendly)
+Medical Safety & Compliance:
 
-### 1. Create Supabase Project
+90-Day Lockout: Automatically blocks donors from matching if they have donated within the last 90 days.
 
-1. Go to [supabase.com](https://supabase.com) → New Project
-2. Wait for it to finish provisioning
-3. Go to **Project Settings → API** and copy:
-   - Project URL
-   - `anon` `public` key
+Medical Screening: Blocks registration for users with infectious diseases (HIV, Hepatitis, etc.).
 
-### 2. Run the Database Migration
+Compatibility Matrix: Matches exact blood groups as well as medically compatible blood types.
 
-1. In Supabase → **SQL Editor**
-2. Open the file `supabase/migrations/001_initial_schema.sql`
-3. Copy everything and paste into the SQL Editor → **Run**
-4. Then go to **Database → Replication** and enable Realtime for:
-   - `donors`
-   - `blood_requests`
-   - `request_responses`
+Interactive Geospatial Map: Uses Leaflet.js to plot the hospital (Red pin) and donors (Green A, B, C pins) based on their exact Area/City coordinates.
 
-### 3. Enable Google Auth
+Document Generation: Automatically generates downloadable PDF Donation Certificates and Medical Blood Reports using jsPDF.
 
-1. Supabase → **Authentication → Providers → Google**
-2. Enable it and add your Google OAuth Client ID & Secret
-   (Create credentials at [Google Cloud Console](https://console.cloud.google.com/))
-3. Add `http://localhost:5173` to Redirect URLs
+Blood Inventory Tracking: Tracks the 42-day shelf life of blood bags and alerts hospitals before they expire.
 
-### 4. Local Project Setup
+Admin Directory: A complete searchable database of all registered donors.
 
-```bash
-# Clone / open this folder
-cd blood-donor-portal
+🛠️ Tech Stack
+Frontend: React (Vite), TypeScript, Tailwind CSS, React-Leaflet.
 
-# Install dependencies
+Backend & Database: Supabase (PostgreSQL).
+
+Real-Time Engine: Supabase Realtime (WebSockets).
+
+Document Generation: jsPDF, html2canvas.
+
+Deployment: Vercel (Frontend), Supabase (Database).
+
+⚙️ How to Run Locally
+Clone the repository:
+
+bash
+git clone https://github.com/shreyagarje07-star/Blood-IQ.git
+cd Blood-IQ
+Install dependencies:
+
+bash
 npm install
+Set up Environment Variables:
+Create a .env file in the root directory and add your Supabase credentials:
 
-# Create env file
-cp .env.example .env
-# Edit .env and paste your Supabase URL + anon key
+env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+Run the development server:
 
-# Start the app
+bash
 npm run dev
-```
+Open http://localhost:5173 in your browser.
 
-Open http://localhost:5173
+🗄️ Database Setup (Supabase)
+To run this project, you need to create the following tables in your Supabase PostgreSQL database. Run this SQL in the Supabase SQL Editor:
 
-## How to Demo the Real-time Feature
+sql
+-- Create Donors Table
+CREATE TABLE public.donors (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  phone text NOT NULL UNIQUE,
+  age integer,
+  blood_group text NOT NULL,
+  city text NOT NULL,
+  area text,
+  state text NOT NULL,
+  last_donation_date date,
+  consent_sms boolean DEFAULT true,
+  is_available boolean DEFAULT true,
+  total_donations integer DEFAULT 0,
+  latitude numeric,
+  longitude numeric,
+  created_at timestamptz DEFAULT now()
+);
 
-1. Open two browser windows (or one normal + one incognito)
-2. Window A → Sign in as **Donor**, complete registration, stay on Donor Dashboard
-3. Window B → Sign in as **Hospital**, submit a request for the same blood group and city
-4. Window A instantly shows the emergency toast + Accept/Decline modal
-5. Click **Accept** → Hospital window receives a live “Donor accepted” notification
+-- Create Blood Requests Table
+CREATE TABLE public.blood_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_name text NOT NULL,
+  blood_group text NOT NULL,
+  urgency text NOT NULL,
+  hospital_city text NOT NULL,
+  status text DEFAULT 'open',
+  created_at timestamptz DEFAULT now()
+);
 
-## Priority Score Logic
+-- Create Certificates Table
+CREATE TABLE public.certificates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  donor_id uuid REFERENCES public.donors(id),
+  hospital_name text,
+  issued_at timestamptz DEFAULT now()
+);
 
-Located in `src/lib/matching.ts`.
 
-```
-Score = Proximity (0 or 40) + Recency (0-30) + Reliability (0-30)
-```
-
-Hospital dashboard always shows matched donors **sorted from highest to lowest score** with a visual progress bar.
-
-## Project Structure
-
-```
-src/
-  components/
-    DonorRegistration.tsx
-    DonorDashboard.tsx      ← realtime listener + Accept/Decline
-    HospitalDashboard.tsx   ← request form + scored list
-    PriorityScoreBar.tsx
-  lib/
-    supabase.ts
-    types.ts                ← Zod schemas
-    matching.ts             ← Priority Score + filter logic
-  App.tsx                   ← Auth + simple routing
-supabase/
-  migrations/
-    001_initial_schema.sql  ← tables + indexes + RLS
-```
-
-## Next Improvements (optional)
-
-- Move matching into a Supabase Edge Function / TanStack Server Function
-- SMS via Twilio when donor is offline
-- Map-based proximity (lat/lng) instead of city string
-- Admin panel for hospitals
-
----
-
-Built for learning and demonstration. You now have a complete, working model of a real-time emergency blood matching system.
+📄 License
+This project is open-source and available under the MIT License.
