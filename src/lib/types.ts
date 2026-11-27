@@ -9,16 +9,22 @@ export type BloodGroup = z.infer<typeof BloodGroupEnum>;
 // ---------- Donor ----------
 export const DonorSchema = z.object({
   id: z.string().uuid().optional(),
-  user_id: z.string().uuid(),
+  user_id: z.string().uuid().optional(), // Made optional since we removed login
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(10, 'Enter a valid phone number'),
+  age: z.number().int().min(18).max(65).optional(), // <--- ADDED
   blood_group: BloodGroupEnum,
   city: z.string().min(2),
   state: z.string().min(2),
+  area: z.string().optional().nullable(), // <--- ADDED
+  latitude: z.number().optional().nullable(), // <--- ADDED
+  longitude: z.number().optional().nullable(), // <--- ADDED
   consent_sms: z.boolean(),
   is_available: z.boolean().default(true),
-  last_donation_date: z.string().nullable().optional(), // ISO date or null
+  last_donation_date: z.string().nullable().optional(),
   total_donations: z.number().int().min(0).default(0),
+  has_disease: z.boolean().optional().nullable(), // <--- ADDED
+  disease_details: z.string().optional().nullable(), // <--- ADDED
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -32,6 +38,10 @@ export const DonorRegistrationSchema = DonorSchema.omit({
   created_at: true,
   updated_at: true,
   is_available: true,
+  has_disease: true,
+  disease_details: true,
+  latitude: true,
+  longitude: true,
 }).extend({
   is_available: z.boolean().default(true),
 });
@@ -45,7 +55,7 @@ export const BloodRequestSchema = z.object({
   blood_group: BloodGroupEnum,
   urgency: z.enum(['critical', 'urgent', 'normal']).default('urgent'),
   hospital_city: z.string().min(2),
-  status: z.enum(['open', 'fulfilled', 'cancelled']).default('open'),
+  status: z.enum(['open', 'fulfilled', 'cancelled', 'closed']).default('open'),
   created_by: z.string().uuid().optional(),
   notes: z.string().optional(),
   created_at: z.string().optional(),

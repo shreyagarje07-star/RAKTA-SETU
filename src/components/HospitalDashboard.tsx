@@ -18,7 +18,7 @@ const getMockCoordinates = (city: string) => {
   return { lat: null, lon: null };
 };
 
-export function HospitalDashboard({ userId }: { userId?: string }) {
+export function HospitalDashboard() {
   const [form, setForm] = useState({
     hospital_name: '', blood_group: 'O+' as BloodGroup, urgency: 'urgent' as 'critical' | 'urgent' | 'normal', hospital_city: '', notes: '',
   });
@@ -30,7 +30,6 @@ export function HospitalDashboard({ userId }: { userId?: string }) {
   
   const [allMatchedDonors, setAllMatchedDonors] = useState<ScoredDonor[]>([]); // For the map
   const [activeRequest, setActiveRequest] = useState<BloodRequest | null>(null);
-  const [responses, setResponses] = useState<any[]>([]);
   const [hospitalCoords, setHospitalCoords] = useState<{ lat: number, lon: number } | null>(null);
 
   useEffect(() => {
@@ -38,7 +37,6 @@ export function HospitalDashboard({ userId }: { userId?: string }) {
     const channel = supabase.channel(`request-${activeRequest.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'request_responses', filter: `request_id=eq.${activeRequest.id}` }, (payload) => {
         const resp = payload.new;
-        setResponses((prev) => [...prev, resp]);
         if (resp.status === 'accepted') toast.success('A donor has accepted the request! 🎉');
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -53,7 +51,6 @@ export function HospitalDashboard({ userId }: { userId?: string }) {
     setLoading(true);
     setExactDonors([]);
     setCompatibleDonors([]);
-    setResponses([]);
     setHospitalCoords(null);
 
     try {
