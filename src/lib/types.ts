@@ -9,22 +9,25 @@ export type BloodGroup = z.infer<typeof BloodGroupEnum>;
 // ---------- Donor ----------
 export const DonorSchema = z.object({
   id: z.string().uuid().optional(),
-  user_id: z.string().uuid().optional(), // Made optional since we removed login
+  user_id: z.string().uuid().optional(),
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(10, 'Enter a valid phone number'),
-  age: z.number().int().min(18).max(65).optional(), // <--- ADDED
+  
+  // FIXED: z.coerce.number() automatically converts strings to numbers
+  age: z.coerce.number().int().min(18).max(65).optional(), 
+  
   blood_group: BloodGroupEnum,
   city: z.string().min(2),
   state: z.string().min(2),
-  area: z.string().optional().nullable(), // <--- ADDED
-  latitude: z.number().optional().nullable(), // <--- ADDED
-  longitude: z.number().optional().nullable(), // <--- ADDED
+  area: z.string().optional().nullable(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
   consent_sms: z.boolean(),
   is_available: z.boolean().default(true),
   last_donation_date: z.string().nullable().optional(),
   total_donations: z.number().int().min(0).default(0),
-  has_disease: z.boolean().optional().nullable(), // <--- ADDED
-  disease_details: z.string().optional().nullable(), // <--- ADDED
+  has_disease: z.boolean().optional().nullable(),
+  disease_details: z.string().optional().nullable(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
